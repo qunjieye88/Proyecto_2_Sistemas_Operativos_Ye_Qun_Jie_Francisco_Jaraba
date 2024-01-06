@@ -60,6 +60,8 @@ int main()
     memcpy(&ext_bytemaps,(EXT_BLQ_INODOS *)&datosfich[1], SIZE_BLOQUE);
     memcpy(&ext_blq_inodos,(EXT_BLQ_INODOS *)&datosfich[2], SIZE_BLOQUE);
     memcpy(&memdatos,(EXT_DATOS *)&datosfich[4],MAX_BLOQUES_DATOS*SIZE_BLOQUE);
+
+    fclose(fent);
     
     // Buce de tratamiento de comandos
     for (;;){
@@ -79,31 +81,36 @@ int main()
         }else if (strcmp(orden,"dir")==0) {
             Directorio(directorio, &ext_blq_inodos);
         }else if (strcmp(orden,"rename")==0) {
-            Renombrar(directorio, &ext_blq_inodos, argumento1, argumento2);
+            grabardatos=Renombrar(directorio, &ext_blq_inodos, argumento1, argumento2);
         }else if (strcmp(orden,"imprimir")==0) {
             Imprimir(directorio, &ext_blq_inodos, memdatos, argumento1);
         }else if (strcmp(orden,"remove")==0) {
-            Borrar(directorio, &ext_blq_inodos,&ext_bytemaps, &ext_superblock,argumento1, fent);
+            grabardatos=Borrar(directorio, &ext_blq_inodos,&ext_bytemaps, &ext_superblock,argumento1, fent);
         }else if (strcmp(orden,"copy")==0) {
-            Copiar(directorio, &ext_blq_inodos, &ext_bytemaps, &ext_superblock,
+            grabardatos=Copiar(directorio, &ext_blq_inodos, &ext_bytemaps, &ext_superblock,
             memdatos,argumento1, argumento2,  fent);
         }else if (strcmp(orden,"salir")==0) {//SALIMOS DEL PROGRAMA
-            /*//...
+            //...
             // Escritura de metadatos en comandos rename, remove, copy     
-            Grabarinodosydirectorio(directorio,&ext_blq_inodos,fent);
-            GrabarByteMaps(&ext_bytemaps,fent);
-            GrabarSuperBloque(&ext_superblock,fent);
-            if (grabardatos)
-            GrabarDatos(memdatos,fent);
-            grabardatos = 0;
+            //SI GRABAR DATOS ES 1, SE ACTUALIA EL FICHERO
+            if (grabardatos==1){
+                fent = fopen("particion.bin","w");
+                GrabarSuperBloque(&ext_superblock,fent);
+                GrabarByteMaps(&ext_bytemaps,fent);
+                Grabarinodosydirectorio(directorio,&ext_blq_inodos,fent);
+                GrabarDatos(memdatos,fent);
+                grabardatos = 0;
+                fclose(fent);
+            }
             //Si el comando es salir se habrán escrito todos los metadatos
-            //faltan los datos y cerrar*/
+            //faltan los datos y cerrar
+
+            
             printf("SALIENDO...\n");
-            fclose(fent);
             return 0;
         }
+
         
-        printf("\n");
     }
 }
 
@@ -220,17 +227,17 @@ void Directorio(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos){
 //CAMBIA EL NOMBRE DEL FICHERO
 int Renombrar(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos, char *nombreantiguo, char *nombrenuevo){
     
-    int error=0;
+    int correcto=0;
     int contador=0;
     // COMPRUEBA SI EL NOMBRE ANTUGUO EXISTE O NO, SI EXISTE, SEGUARDA EN ERROR UN 1
     for(int i=1; i<MAX_FICHEROS;i++){
         if(strcmp(directorio[i].dir_nfich,nombreantiguo)==0){
             contador=i;
-            error=1;
+            correcto=1;
             //COMPRUEBA SI EL NOMBRE NUEVO EXISTE O NO, SI EXISTE, SEGUARDA EN ERROR UN 0
             for(int t=1; t<MAX_FICHEROS; t++){
                 if(strcmp(directorio[t].dir_nfich,nombrenuevo)==0){
-                    error=0;
+                    correcto=0;
                     t=MAX_FICHEROS;
                 }
             }
@@ -238,14 +245,14 @@ int Renombrar(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos, char *nombrea
         }
     }
     //SI LOS NOMBRES ESTAN CORRECTOS, EL NOMBRE SE CAMBIA
-    if(error==1){
+    if(correcto==1){
         strcpy(directorio[contador].dir_nfich,nombrenuevo);
         printf("EL FICHERO %s SE CAMBIO DE NOMBRE A %s\n", nombreantiguo, nombrenuevo);
     }else{
         printf("ERROR EN LOS NOMBRES\n");
     }
     //DEVUELVE UN 1 NO HAY ERROR Y UN 0 SI HAY ERROR
-    return error;
+    return correcto;
 }
 
 //IMPRIME EL CONTENIDO DEL FICHERO
@@ -255,8 +262,7 @@ int Imprimir(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos, EXT_DATOS *mem
         for(int i=0; i<MAX_NUMS_BLOQUE_INODO; i++){
             //IMPRIME LOS DATOS GUARDADOS EN EL BLOQUE 
             if(inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[i]!=0xFFFF){
-                printf("%s\n",memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL, nombre)].dir_inodo].i_nbloque[i]-4].dato);   
-                printf("%d\n ",inodos->blq_inodos[directorio[BuscaFich(directorio,NULL, nombre)].dir_inodo].i_nbloque[i]-4);
+                printf("%s\n",memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL, nombre)].dir_inodo].i_nbloque[i]-4].dato);
             }
         }
     }else{
@@ -289,7 +295,7 @@ int BuscaFich(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos, char *nombre)
 //BORRA EL FICHERO
 int Borrar(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos,EXT_BYTE_MAPS *ext_bytemaps,
 EXT_SIMPLE_SUPERBLOCK *ext_superblock, char *nombre,  FILE *fich){
-    int error=0;
+    int correcto=0;
     //COMPRUEBA SI EL FICHERO EXISTE O NO
     if(existeFichero(directorio, nombre)==1){
         //ELIMINAMOS EL INODO Y SUMAMOS 1 EN EL INODO GLOBAL
@@ -311,19 +317,20 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock, char *nombre,  FILE *fich){
         directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo=0xFFFF;
         strcpy(directorio[BuscaFich(directorio, NULL,nombre)].dir_nfich,"");
         printf("SE ELIMINO EL FICHERO %s\n", nombre);
+        correcto=1;
     }else{
         printf("NO EXISTE EL FICHERO  %s\n", nombre);
-        error=1;
+        correcto=0;
     }
-    //DEVUELVE UN 1 SI HAY ERROR
-    return error;
+    //DEVUELVE UN 0 SI HAY ERROR
+    return correcto;
 
 }
 
 //FUCNION QUE COPIA UN FICHERO A OTRO
 int Copiar(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos,EXT_BYTE_MAPS *ext_bytemaps,
 EXT_SIMPLE_SUPERBLOCK *ext_superblock,EXT_DATOS *memdatos, char *nombreorigen, char *nombredestino,  FILE *fich){
-
+    int correcto=0;
     int contador=0;
     int num_fichero;
     //SI EL FICHERO DESTINO YA EXISTE, SE ELIMINAN TODOS SUS DATOS PARA SOBRESCRIBIR LOS DATOS DEL FICHERO ORIGEN
@@ -361,7 +368,7 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock,EXT_DATOS *memdatos, char *nombreorigen, c
                         for(int y=0;y<MAX_NUMS_BLOQUE_INODO;y++){
                             if(inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]==0xFFFF){
                                 inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]=t;
-                                strcpy(memdatos[t-4].dato , memdatos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo-4].dato);
+                                strcpy(memdatos[t-4].dato , memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombreorigen)].dir_inodo].i_nbloque[i]-4].dato);
                                 ext_superblock->s_free_blocks_count--;
                                 y=MAX_NUMS_BLOQUE_INODO;
                             }
@@ -374,9 +381,32 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock,EXT_DATOS *memdatos, char *nombreorigen, c
         }
                    
         printf("SE COPIARON LOS DATOS DE %s A %s\n",nombreorigen, nombredestino);
+        correcto=1;
     }else{
         printf("EL FICHERO ORIGEN NO EXISTE\n");
+        correcto=0;
     }
+
+    return correcto;
 
 }
 
+//FUNCION QUE ESCRIBE EN EL FICHERO EL SUPERBLOQUE
+void GrabarSuperBloque(EXT_SIMPLE_SUPERBLOCK *ext_superblock, FILE *fich){
+    fwrite(ext_superblock,SIZE_BLOQUE,1, fich);
+}
+
+//FUNCION QUE ESCRIBE EN EL FICHERO EL BYTEMAPS
+void GrabarByteMaps(EXT_BYTE_MAPS *ext_bytemaps, FILE *fich){
+    fwrite(ext_bytemaps,SIZE_BLOQUE,1, fich);
+}
+//FUNCION QUE ESCRIBE EN EL FICHERO EL INODO Y DIRECTORIO
+void Grabarinodosydirectorio(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos, FILE *fich){
+    fwrite(inodos,SIZE_BLOQUE,1, fich);
+    fwrite(directorio,SIZE_BLOQUE,1, fich);
+}
+
+//FUNCION QUE ESCRIBE EN EL FICHERO LOS DATOS
+void GrabarDatos(EXT_DATOS *memdatos, FILE *fich){
+    fwrite(memdatos,SIZE_BLOQUE,MAX_BLOQUES_DATOS, fich);
+}
