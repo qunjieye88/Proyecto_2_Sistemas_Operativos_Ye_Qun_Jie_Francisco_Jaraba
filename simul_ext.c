@@ -368,7 +368,7 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock,EXT_DATOS *memdatos, char *nombreorigen, c
                         for(int y=0;y<MAX_NUMS_BLOQUE_INODO;y++){
                             if(inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]==0xFFFF){
                                 inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]=t;
-                                strcpy(memdatos[t-4].dato , memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombreorigen)].dir_inodo].i_nbloque[i]-4].dato);
+                                memcpy(memdatos[t-4].dato , memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombreorigen)].dir_inodo].i_nbloque[i]-4].dato, SIZE_BLOQUE);
                                 ext_superblock->s_free_blocks_count--;
                                 y=MAX_NUMS_BLOQUE_INODO;
                             }
