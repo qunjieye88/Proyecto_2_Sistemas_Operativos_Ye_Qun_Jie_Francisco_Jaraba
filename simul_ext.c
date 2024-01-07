@@ -207,7 +207,7 @@ void Printbytemaps(EXT_BYTE_MAPS *ext_bytemaps){
 void Directorio(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos){
 
     for(int i=1; i<MAX_FICHEROS; i++){
-        if(directorio[i].dir_inodo!=0xFFFF){
+        if(directorio[i].dir_inodo!=NULL_INODO){
         //IMPRIME EL NOMBRE, TAMAÑO Y EL INODO DEL FICHERO
         printf("%s" ,directorio[i].dir_nfich);
         printf("\tTamaño: %d ", inodos->blq_inodos[directorio[i].dir_inodo].size_fichero);
@@ -215,7 +215,7 @@ void Directorio(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos){
         printf("\tBloques: ");
         //DE CADA FICHERO IMPRIME LA POSICION DEL BLOQUE
         for(int x=0; x<MAX_NUMS_BLOQUE_INODO; x++){
-            if(inodos->blq_inodos[directorio[i].dir_inodo].i_nbloque[x] != 0xFFFF){
+            if(inodos->blq_inodos[directorio[i].dir_inodo].i_nbloque[x] != NULL_BLOQUE){
             printf("%d ",inodos->blq_inodos[directorio[i].dir_inodo].i_nbloque[x]);
             }
         }
@@ -261,7 +261,7 @@ int Imprimir(EXT_ENTRADA_DIR *directorio, EXT_BLQ_INODOS *inodos, EXT_DATOS *mem
     if(existeFichero(directorio, nombre)==1){
         for(int i=0; i<MAX_NUMS_BLOQUE_INODO; i++){
             //IMPRIME LOS DATOS GUARDADOS EN EL BLOQUE 
-            if(inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[i]!=0xFFFF){
+            if(inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[i]!=NULL_BLOQUE){
                 printf("%s\n",memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL, nombre)].dir_inodo].i_nbloque[i]-4].dato);
             }
         }
@@ -303,18 +303,18 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock, char *nombre,  FILE *fich){
         ext_superblock->s_free_inodes_count++;
         //ELIMINA CADA BLOQUE Y POR CADA BLOQUE ELIMINADO AUMENTA EN 1 EL BLOQUE GLOBAL
         for(int x=0; x<MAX_NUMS_BLOQUE_INODO; x++){
-            if(inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[x] != 0xFFFF){
+            if(inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[x] != NULL_BLOQUE){
                 ext_bytemaps->bmap_bloques[inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[x]]=0;
                 ext_superblock->s_free_blocks_count++;
             }
         }
         //ELIMINA LOS NUMEROS DE BLOQUE
         for(int i=0; i<MAX_NUMS_BLOQUE_INODO; i++){
-            inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[i]=0xFFFF;
+            inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].i_nbloque[i]=NULL_BLOQUE;
         }
         //ELIMINAMOS EL TAMAÑO DEL FICHERO Y LA DIRECCION DEL INODO, Y EL NOMBRE DEL FICHERO LO IGUALAMOS A UN STRING VACIO
         inodos->blq_inodos[directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo].size_fichero=0;
-        directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo=0xFFFF;
+        directorio[BuscaFich(directorio, NULL,nombre)].dir_inodo=NULL_INODO;
         strcpy(directorio[BuscaFich(directorio, NULL,nombre)].dir_nfich,"");
         printf("SE ELIMINO EL FICHERO %s\n", nombre);
         correcto=1;
@@ -344,7 +344,7 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock,EXT_DATOS *memdatos, char *nombreorigen, c
 
         //ASIGNAMOS LA DIRECCION DE INODO, EL NOMBRE, Y ACTUALIZAMOS EL INODO DEL BYTMAPS Y DEL INODO GLOBAL
         for(int i=1; i<MAX_FICHEROS;i++){
-                if(directorio[i].dir_inodo==0xFFFF){
+                if(directorio[i].dir_inodo==NULL_INODO){
                     for(int t=0; t<MAX_INODOS; t++){
                         if(ext_bytemaps->bmap_inodos[t]==0){
                             directorio[i].dir_inodo=t;
@@ -362,11 +362,11 @@ EXT_SIMPLE_SUPERBLOCK *ext_superblock,EXT_DATOS *memdatos, char *nombreorigen, c
 
         //ASIGNAMOS LOS BLOQUES Y LOS DATOS DEL BLOQUE, Y ACTUALIZAMOS LOS BLOQUES EN EL BYTMAPS Y EN LOS BLOQUES GLOBALES
         for(int i=0; i<MAX_NUMS_BLOQUE_INODO; i++){
-            if(inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombreorigen)].dir_inodo].i_nbloque[i]!=0xFFFF){
+            if(inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombreorigen)].dir_inodo].i_nbloque[i]!=NULL_INODO){
                 for(int t=0; t<MAX_BLOQUES_DATOS;t++){
                     if(ext_bytemaps->bmap_bloques[t]==0){
                         for(int y=0;y<MAX_NUMS_BLOQUE_INODO;y++){
-                            if(inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]==0xFFFF){
+                            if(inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]==NULL_BLOQUE){
                                 inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombredestino)].dir_inodo].i_nbloque[y]=t;
                                 memcpy(memdatos[t-4].dato , memdatos[inodos->blq_inodos[directorio[BuscaFich(directorio,NULL,nombreorigen)].dir_inodo].i_nbloque[i]-4].dato, SIZE_BLOQUE);
                                 ext_superblock->s_free_blocks_count--;
