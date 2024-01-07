@@ -1,1 +1,1 @@
-Equipo:   QunJie Ye
+Equipo:   QunJie Ye y Francisco Jaraba
